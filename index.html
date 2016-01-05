@@ -1,0 +1,351 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>SQLite.jl by JuliaDB</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>SQLite.jl</h1>
+        <p>A Julia interface to the SQLite library</p>
+
+        <p class="view"><a href="https://github.com/JuliaDB/SQLite.jl">View the Project on GitHub <small>JuliaDB/SQLite.jl</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/JuliaDB/SQLite.jl/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/JuliaDB/SQLite.jl/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/JuliaDB/SQLite.jl">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="sqlitejl" class="anchor" href="#sqlitejl" aria-hidden="true"><span class="octicon octicon-link"></span></a>SQLite.jl</h1>
+
+<p><a href="http://pkg.julialang.org/?pkg=SQLite"><img src="http://pkg.julialang.org/badges/SQLite_0.3.svg" alt="SQLite"></a>
+<a href="http://pkg.julialang.org/?pkg=SQLite"><img src="http://pkg.julialang.org/badges/SQLite_0.4.svg" alt="SQLite"></a>
+<a href="https://travis-ci.org/JuliaDB/SQLite.jl"><img src="https://travis-ci.org/JuliaDB/SQLite.jl.svg?branch=master" alt="Build Status"></a>
+<a href="https://coveralls.io/github/JuliaDB/SQLite.jl?branch=master"><img src="https://coveralls.io/repos/JuliaDB/SQLite.jl/badge.svg?branch=master&amp;service=github" alt="Coverage Status"></a></p>
+
+<p>A Julia interface to the SQLite library and support for the <code>DataStreams</code> data processing framework.</p>
+
+<p>**Note: the package has recently undergone major UI changes: for 0.3 compatible code, please see the old <a href="https://github.com/JuliaDB/SQLite.jl/blob/master/OLD_README.md">README</a></p>
+
+<p><strong>Installation</strong>: <code>julia&gt; Pkg.add("SQLite")</code></p>
+
+<h2>
+<a id="package-documentation" class="anchor" href="#package-documentation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Package Documentation</h2>
+
+<h4>
+<a id="typesfunctions" class="anchor" href="#typesfunctions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Types/Functions</h4>
+
+<ul>
+<li>
+<p><code>SQLite.DB(file::AbstractString)</code></p>
+
+<p><code>SQLite.DB</code> requires the <code>file</code> string argument as the name of either a pre-defined SQLite database to be opened, or if the file doesn't exist, a database will be created.</p>
+
+<p>The <code>SQLite.DB</code> object represents a single connection to an SQLite database. All other SQLite.jl functions take an <code>SQLite.DB</code> as the first argument as context.</p>
+
+<p>To create an in-memory temporary database, call <code>SQLite.DB()</code>.</p>
+
+<p>The <code>SQLite.DB</code> will automatically closed/shutdown when it goes out of scope (i.e. the end of the Julia session, end of a function call wherein it was created, etc.)</p>
+</li>
+<li>
+<p><code>SQLite.Stmt(db::SQLite.DB, sql::String)</code></p>
+
+<p>Constructs and prepares (compiled by the SQLite library) an SQL statement in the context of the provided <code>db</code>. Note the SQL statement is not actually executed, but only compiled (mainly for usage where the same statement is repeated with different parameters bound as values. See <code>bind!</code> below).</p>
+
+<p>The <code>SQLite.Stmt</code> will automatically closed/shutdown when it goes out of scope (i.e. the end of the Julia session, end of a function call wherein it was created, etc.)</p>
+</li>
+<li>
+<p><code>SQLite.bind!(stmt::SQLite.Stmt,index,value)</code></p>
+
+<p>Used to bind values to parameter placeholders in an prepared <code>SQLite.Stmt</code>. From the SQLite documentation:</p>
+
+<blockquote>
+<p>Usually, though, it is not useful to evaluate exactly the same SQL statement more than once. More often, one wants to evaluate similar statements. For example, you might want to evaluate an INSERT statement multiple times though with different values to insert. To accommodate this kind of flexibility, SQLite allows SQL statements to contain parameters which are "bound" to values prior to being evaluated. These values can later be changed and the same prepared statement can be evaluated a second time using the new values.</p>
+
+<p>In SQLite, wherever it is valid to include a string literal, one can use a parameter in one of the following forms:</p>
+
+<p>?
+?NNN
+:AAA
+$AAA
+<a href="https://github.com/AAA" class="user-mention">@AAA</a></p>
+
+<p>In the examples above, NNN is an integer value and AAA is an identifier. A parameter initially has a value of NULL. Prior to calling sqlite3_step() for the first time or immediately after sqlite3_reset(), the application can invoke one of the sqlite3_bind() interfaces to attach values to the parameters. Each call to sqlite3_bind() overrides prior bindings on the same parameter.</p>
+</blockquote>
+</li>
+<li>
+<p><code>SQLite.execute!(stmt::SQLite.Stmt)</code>
+<code>SQLite.execute!(db::SQLite.DB, sql::String)</code></p>
+
+<p>Used to execute a prepared <code>SQLite.Stmt</code>. The 2nd method is a convenience method to pass in an SQL statement as a string which gets prepared and executed in one call. This method does not check for or return any results, hence it is only useful for database manipulation methods (i.e. ALTER, CREATE, UPDATE, DROP). To return results, see <code>SQLite.query</code> below.</p>
+</li>
+<li>
+<p><code>SQLite.query(db::SQLite.DB, sql::String, values=[])</code></p>
+
+<p>An SQL statement <code>sql</code> is prepared, executed in the context of <code>db</code>, and results, if any, are returned. The return value is a <code>Data.Table</code> by default from the <code>DataStreams.jl</code> package. The <code>Data.Table</code> has a field <code>.data</code> which is a <code>Vector{NullableVector}</code> which holds the columns of data returned from the <code>sql</code> statement.</p>
+
+<p>The values in <code>values</code> are used in parameter binding (see <code>bind!</code> above). If your statement uses nameless parameters <code>values</code> must be a <code>Vector</code> of the values you wish to bind to your statment. If your statement uses named parameters <code>values</code> must be a Dict where the keys are of type <code>Symbol</code>. The key must match an identifier name in the statement (the name <strong>should not</strong> include the ':', '@' or '$' prefix).</p>
+</li>
+<li>
+<p><code>SQLite.drop!(db::SQLite.DB,table::String;ifexists::Bool=false)</code>
+<code>SQLite.dropindex!(db::SQLite.DB,index::String;ifexists::Bool=false)</code></p>
+
+<p>These are pretty self-explanatory. They're really just a convenience methods to execute DROP TABLE/DROP INDEX commands, while also calling "VACUUM" to clean out freed memory from the database.</p>
+</li>
+<li>
+<p><code>SQLite.createindex!(db::DB,table::AbstractString,index::AbstractString,cols;unique::Bool=true,ifnotexists::Bool=false)</code></p>
+
+<p>Create a new index named <code>index</code> for <code>table</code> with the columns in <code>cols</code>, which should be a comma delimited list of column names. <code>unique</code> indicates whether the index will have unique values or not. <code>ifnotexists</code> will not throw an error if the index already exists.</p>
+</li>
+<li>
+<p><code>SQLite.removeduplicates!(db,table::AbstractString,cols::AbstractString)</code></p>
+
+<p>A convenience method for the common task of removing duplicate rows in a dataset according to some subset of columns that make up a "primary key".</p>
+</li>
+<li>
+<p><code>SQLite.tables(db::SQLite.DB)</code></p>
+
+<p>List the tables in an SQLite database <code>db</code></p>
+</li>
+<li>
+<p><code>SQLite.columns(db::SQLite.DB,table::AbstractString)</code></p>
+
+<p>List the columns in an SQLite table</p>
+</li>
+<li>
+<p><code>SQLite.indices(db::SQLite.DB)</code></p>
+
+<p>List the indices that have been created in <code>db</code></p>
+</li>
+<li>
+<p><code>SQLite.Source(db::DB, sql; rows=0, stricttypes::Bool=true)</code></p>
+
+<p>Create an <code>SQLite.Source</code> type in <code>db</code> with the SQL statement <code>sql</code>. This prepares and executes the statement, but does not return any data. The source is ready to be streamed to any sink type with an appropriate <code>Data.stream!</code> method defined. <code>rows</code> can be used to fetch a specific number of rows if known before hand and can help in pre-allocating for sinks. <code>stricttypes=false</code> can be used to relax type requirements on returned columns; typically, each value in a column must be of the same type, but SQLite itself uses a fairly weak typing scheme which allows any value to be in a column, regardless of type. Working with data in Julia is much more useful in strongly-typed structures, so by default we try to return strongly-typed columns, but this can be relaxed.</p>
+</li>
+<li>
+<p><code>SQLite.Source(sink::SQLite.Sink,sql)</code></p>
+
+<p>Creates an <code>SQLite.Source</code> type according the <code>sql</code> command executed in the same <code>db</code> as <code>sink</code>. By default, the <code>sql</code> command is <code>select * from $(sink.tablename)</code>.</p>
+</li>
+<li>
+<p><code>Data.stream!(source::SQLite.Source,::Type{Data.Table})</code></p>
+
+<p>Create a <code>Data.Table</code> and stream the data from an <code>SQLite.Source</code> into it.</p>
+</li>
+<li>
+<p><code>Data.stream!(source::SQLite.Source,sink::CSV.Sink;header::Bool=true)</code></p>
+
+<p>stream the data from <code>source</code> to a <code>CSV.Sink</code>. <code>header</code> indicates whether the column names will be written first to <code>sink</code>.</p>
+</li>
+<li>
+<p><code>SQLite.Sink(schema::Data.Schema,db::DB,tablename;temp::Bool=false,ifnotexists::Bool=true)</code></p>
+
+<p>Create a new SQLite table as a sink to stream data to in <code>db</code>. <code>schema</code> is used to create the column names and types. If no <code>tablename</code> is supplied, one will be generated. <code>temp</code> indicates whether the table will be temporary, i.e. if it will be automatically destroyed when the <code>db</code> is closed.</p>
+</li>
+<li>
+<p><code>SQLite.Sink(source::Data.Source, db::DB, tablename)</code>  </p>
+
+<p>Create a new SQLite table as a sink in <code>db</code> according to the <code>Data.schema(source)</code>.</p>
+</li>
+<li>
+<p><code>Data.stream!(dt::Data.Table,sink::SQLite.Sink)</code></p>
+
+<p>stream the data from a <code>Data.Table</code> to <code>sink</code></p>
+</li>
+<li>
+<p><code>Data.stream!(source::CSV.Source,sink::SQLite.Sink)</code></p>
+
+<p>stream the data from a <code>CSV.Source</code> to <code>sink</code></p>
+</li>
+<li><p><code>SQLite.register(db::SQLite.DB, func::Function; nargs::Int=-1, name::AbstractString=string(func), isdeterm::Bool=true)</code></p></li>
+<li>
+<p><code>SQLite.register(db::SQLite.DB, init, step::Function, final::Function=identity; nargs::Int=-1, name::AbstractString=string(final), isdeterm::Bool=true)</code></p>
+
+<p>Register a scalar (first method) or aggregate (second method) function with a <code>SQLite.DB</code>.</p>
+</li>
+<li>
+<p><code>@register db function</code></p>
+
+<p>Automatically define then register <code>function</code> with a <code>SQLite.DB</code>.</p>
+</li>
+<li>
+<p><code>sr"..."</code></p>
+
+<p>This string literal is used to escape all special characters in the string, useful for using regex in a query.</p>
+</li>
+<li>
+<p><code>SQLite.sqlreturn(contex, val)</code></p>
+
+<p>This function should never be called explicitly. Instead it is exported so that it can be overloaded when necessary, see below.</p>
+</li>
+</ul>
+
+<h4>
+<a id="user-defined-functions" class="anchor" href="#user-defined-functions" aria-hidden="true"><span class="octicon octicon-link"></span></a>User Defined Functions</h4>
+
+<h5>
+<a id="sqlite-regular-expressions" class="anchor" href="#sqlite-regular-expressions" aria-hidden="true"><span class="octicon octicon-link"></span></a>SQLite Regular Expressions</h5>
+
+<p>SQLite provides syntax for calling the <a href="http://sqlite.org/lang_expr.html#regexp"><code>regexp</code> function</a> from inside <code>WHERE</code> clauses. Unfortunately, however, SQLite does not provide a default implementation of the <code>regexp</code> function so SQLite.jl creates one automatically when you open a database. The function can be called in the following ways (examples using the <a href="http://chinookdatabase.codeplex.com/">Chinook Database</a>)</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> <span class="pl-k">using</span> SQLite
+
+julia<span class="pl-k">&gt;</span> db <span class="pl-k">=</span> SQLite<span class="pl-k">.</span><span class="pl-c1">DB</span>(<span class="pl-s"><span class="pl-pds">"</span>Chinook_Sqlite.sqlite<span class="pl-pds">"</span></span>)
+
+julia<span class="pl-k">&gt;</span> <span class="pl-c"># using SQLite's in-built syntax</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>SELECT FirstName, LastName FROM Employee WHERE LastName REGEXP 'e(?=a)'<span class="pl-pds">"</span></span>)
+<span class="pl-c1">1</span>x2 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>FirstName<span class="pl-pds">"</span></span> <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>LastName<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">-------------</span><span class="pl-k">|</span><span class="pl-k">------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Jane<span class="pl-pds">"</span></span>      <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Peacock<span class="pl-pds">"</span></span>  <span class="pl-k">|</span>
+
+julia<span class="pl-k">&gt;</span> <span class="pl-c"># explicitly calling the regexp() function</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>SELECT * FROM Genre WHERE regexp('e[trs]', Name)<span class="pl-pds">"</span></span>)
+<span class="pl-c1">6</span>x2 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>GenreId<span class="pl-pds">"</span></span> <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Name<span class="pl-pds">"</span></span>               <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">-----------</span><span class="pl-k">|</span><span class="pl-k">----------------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">3</span>         <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Metal<span class="pl-pds">"</span></span>              <span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">2</span>   <span class="pl-k">|</span> <span class="pl-c1">4</span>         <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Alternative &amp; Punk<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">3</span>   <span class="pl-k">|</span> <span class="pl-c1">6</span>         <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Blues<span class="pl-pds">"</span></span>              <span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">4</span>   <span class="pl-k">|</span> <span class="pl-c1">13</span>        <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Heavy Metal<span class="pl-pds">"</span></span>        <span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">5</span>   <span class="pl-k">|</span> <span class="pl-c1">23</span>        <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Alternative<span class="pl-pds">"</span></span>        <span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">6</span>   <span class="pl-k">|</span> <span class="pl-c1">25</span>        <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Opera<span class="pl-pds">"</span></span>              <span class="pl-k">|</span>
+
+julia<span class="pl-k">&gt;</span> <span class="pl-c"># you can even do strange things like this if you really want</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>SELECT * FROM Genre ORDER BY GenreId LIMIT 2<span class="pl-pds">"</span></span>)
+<span class="pl-c1">2</span>x2 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>GenreId<span class="pl-pds">"</span></span> <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Name<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">-----------</span><span class="pl-k">|</span><span class="pl-k">--------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">1</span>         <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Rock<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">2</span>   <span class="pl-k">|</span> <span class="pl-c1">2</span>         <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Jazz<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>INSERT INTO Genre VALUES (regexp('^word', 'this is a string'), 'My Genre')<span class="pl-pds">"</span></span>)
+<span class="pl-c1">1</span>x1 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Rows Affected<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">-----------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">0</span>               <span class="pl-k">|</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>SELECT * FROM Genre ORDER BY GenreId LIMIT 2<span class="pl-pds">"</span></span>)
+<span class="pl-c1">2</span>x2 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>GenreId<span class="pl-pds">"</span></span> <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Name<span class="pl-pds">"</span></span>     <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">-----------</span><span class="pl-k">|</span><span class="pl-k">------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">0</span>         <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>My Genre<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">2</span>   <span class="pl-k">|</span> <span class="pl-c1">1</span>         <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Rock<span class="pl-pds">"</span></span>     <span class="pl-k">|</span></pre></div>
+
+<p>Due to the heavy use of escape characters you may run into problems where julia parses out some backslashes in your query, for example <code>"\y"</code> simply becomes <code>"y"</code>. For example the following two queries are identical</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>SELECT * FROM MediaType WHERE Name REGEXP '-<span class="pl-cce">\d</span>'<span class="pl-pds">"</span></span>)
+<span class="pl-c1">1</span>x1 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Rows Affected<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">-----------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">0</span>               <span class="pl-k">|</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>SELECT * FROM MediaType WHERE Name REGEXP '-d'<span class="pl-pds">"</span></span>)
+<span class="pl-c1">1</span>x1 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Rows Affected<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">-----------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">0</span>               <span class="pl-k">|</span></pre></div>
+
+<p>This can be avoided in two ways. You can either escape each backslash yourself or you can use the sr"..." string literal that SQLite.jl exports. The previous query can then successfully be run like so</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> <span class="pl-c"># manually escaping backslashes</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">"</span>SELECT * FROM MediaType WHERE Name REGEXP '-<span class="pl-cce">\\</span>d'<span class="pl-pds">"</span></span>)
+<span class="pl-c1">1</span>x2 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>MediaTypeId<span class="pl-pds">"</span></span> <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Name<span class="pl-pds">"</span></span>                        <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">---------------</span><span class="pl-k">|</span><span class="pl-k">-------------------------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">3</span>             <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Protected MPEG-4 video file<span class="pl-pds">"</span></span> <span class="pl-k">|</span>
+
+julia<span class="pl-k">&gt;</span> <span class="pl-c"># using sr"..."</span>
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">query</span>(db, <span class="pl-s"><span class="pl-pds">sr"</span>SELECT * FROM MediaType WHERE Name REGEXP '-\d'<span class="pl-pds">"</span></span>)
+<span class="pl-c1">1</span>x2 ResultSet
+<span class="pl-k">|</span> Row <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>MediaTypeId<span class="pl-pds">"</span></span> <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Name<span class="pl-pds">"</span></span>                        <span class="pl-k">|</span>
+<span class="pl-k">|</span><span class="pl-k">-----</span><span class="pl-k">|</span><span class="pl-k">---------------</span><span class="pl-k">|</span><span class="pl-k">-------------------------------</span><span class="pl-k">|</span>
+<span class="pl-k">|</span> <span class="pl-c1">1</span>   <span class="pl-k">|</span> <span class="pl-c1">3</span>             <span class="pl-k">|</span> <span class="pl-s"><span class="pl-pds">"</span>Protected MPEG-4 video file<span class="pl-pds">"</span></span> <span class="pl-k">|</span></pre></div>
+
+<p>The sr"..." currently escapes all special characters in a string but it may be changed in the future to escape only characters which are part of a regex.</p>
+
+<h5>
+<a id="custom-scalar-functions" class="anchor" href="#custom-scalar-functions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Custom Scalar Functions</h5>
+
+<p>SQLite.jl also provides a way that you can implement your own <a href="https://www.sqlite.org/lang_corefunc.html">Scalar Functions</a>. This is done using the <code>register</code> function and macro.</p>
+
+<p><code>@register</code> takes a <code>SQLite.DB</code> and a function. The function can be in block syntax</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> <span class="pl-c1">@register</span> db <span class="pl-k">function</span> <span class="pl-en">add3</span>(x)
+       x <span class="pl-k">+</span> <span class="pl-c1">3</span>
+       <span class="pl-k">end</span></pre></div>
+
+<p>inline function syntax</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> <span class="pl-c1">@register</span> db <span class="pl-en">mult3</span>(x) <span class="pl-k">=</span> <span class="pl-c1">3</span> <span class="pl-k">*</span> x</pre></div>
+
+<p>and previously defined functions</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> <span class="pl-c1">@register</span> db sin</pre></div>
+
+<p>The <code>SQLite.register</code> function takes optional arguments; <code>nargs</code> which defaults to <code>-1</code>, <code>name</code> which defaults to the name of the function, <code>isdeterm</code> which defaults to <code>true</code>. In practice these rarely need to be used.</p>
+
+<p>The <code>SQLite.register</code> function uses the <code>sqlreturn</code> function to return your function's return value to SQLite. By default, <code>sqlreturn</code> maps the returned value to a <a href="http://sqlite.org/c3ref/result_blob.html">native SQLite type</a> or, failing that, serializes the julia value and stores it as a <code>BLOB</code>. To change this behaviour simply define a new method for <code>sqlreturn</code> which then calls a previously defined method for <code>sqlreturn</code>. Methods which map to native SQLite types are</p>
+
+<div class="highlight highlight-source-julia"><pre><span class="pl-c1">sqlreturn</span>(context, <span class="pl-c1">::NullType</span>)
+<span class="pl-c1">sqlreturn</span>(context, val<span class="pl-c1">::Int32</span>)
+<span class="pl-c1">sqlreturn</span>(context, val<span class="pl-c1">::Int64</span>)
+<span class="pl-c1">sqlreturn</span>(context, val<span class="pl-c1">::Float64</span>)
+<span class="pl-c1">sqlreturn</span>(context, val<span class="pl-c1">::UTF16String</span>)
+<span class="pl-c1">sqlreturn</span>(context, val<span class="pl-c1">::String</span>)
+<span class="pl-c1">sqlreturn</span>(context, val<span class="pl-c1">::Any</span>)</pre></div>
+
+<p>As an example, say you would like <code>BigInt</code>s to be stored as <code>TEXT</code> rather than a <code>BLOB</code>. You would simply need to define the following method</p>
+
+<div class="highlight highlight-source-julia"><pre><span class="pl-en">sqlreturn</span>(context, val<span class="pl-c1">::BigInt</span>) <span class="pl-k">=</span> <span class="pl-c1">sqlreturn</span>(context, <span class="pl-c1">string</span>(val))</pre></div>
+
+<p>Another example is the <code>sqlreturn</code> used by the <code>regexp</code> function. For <code>regexp</code> to work correctly it must return it must return an <code>Int</code> (more specifically a <code>0</code> or <code>1</code>) but <code>ismatch</code> (used by <code>regexp</code>) returns a <code>Bool</code>. For this reason the following method was defined</p>
+
+<div class="highlight highlight-source-julia"><pre><span class="pl-en">sqlreturn</span>(context, val<span class="pl-c1">::Bool</span>) <span class="pl-k">=</span> <span class="pl-c1">sqlreturn</span>(context, <span class="pl-c1">int</span>(val))</pre></div>
+
+<p>Any new method defined for <code>sqlreturn</code> must take two arguments and must pass the first argument straight through as the first argument.</p>
+
+<h4>
+<a id="custom-aggregate-functions" class="anchor" href="#custom-aggregate-functions" aria-hidden="true"><span class="octicon octicon-link"></span></a>Custom Aggregate Functions</h4>
+
+<p>Using the <code>SQLite.register</code> function, you can also define your own aggregate functions with largely the same semantics.</p>
+
+<p>The <code>SQLite.register</code> function for aggregates must take a <code>SQLite.DB</code>, an initial value, a step function and a final function. The first argument to the step function will be the return value of the previous function (or the initial value if it is the first iteration). The final function must take a single argument which will be the return value of the last step function.</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> <span class="pl-en">dsum</span>(prev, cur) <span class="pl-k">=</span> prev <span class="pl-k">+</span> cur
+
+julia<span class="pl-k">&gt;</span> <span class="pl-en">dsum</span>(prev) <span class="pl-k">=</span> <span class="pl-c1">2</span> <span class="pl-k">*</span> prev
+
+julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">register</span>(db, <span class="pl-c1">0</span>, dsum, dsum)</pre></div>
+
+<p>If no name is given the name of the first (step) function is used (in this case "dsum"). You can also use lambdas, the following does the same as the previous code snippet</p>
+
+<div class="highlight highlight-source-julia"><pre>julia<span class="pl-k">&gt;</span> SQLite<span class="pl-k">.</span><span class="pl-c1">register</span>(db, <span class="pl-c1">0</span>, (p,c) <span class="pl-k">-&gt;</span> p<span class="pl-k">+</span>c, p <span class="pl-k">-&gt;</span> <span class="pl-c1">2</span>p, name<span class="pl-k">=</span><span class="pl-s"><span class="pl-pds">"</span>dsum<span class="pl-pds">"</span></span>)</pre></div>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/JuliaDB">JuliaDB</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
