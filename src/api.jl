@@ -49,6 +49,16 @@ function sqlite3_finalize(stmt::Ptr{Void})
         Cint, (Ptr{Void},),
         stmt)
 end
+function sqlite3_interrupt(handle::Ptr{Void})
+  return ccall( (:sqlite3_interrupt, sqlite3_lib),
+        Cint, ())
+end
+function sqlite3_progress_handler(handle::Ptr{Void}, n::Integer, cb::Function)
+  cf = cfunction(cb, Integer, (Ptr{Void},))
+  return ccall( (:sqlite3_progress_handler, sqlite3_lib),
+      Ptr{Void}, (Ptr{Void}, Cint, Ptr{Void}, Ptr{Void}),
+        handle, n, cf, handle)
+end
 
 # SQLITE_API int sqlite3_bind_paramter_count(sqlite3_stmt*)
 function sqlite3_bind_parameter_count(stmt::Ptr{Void})

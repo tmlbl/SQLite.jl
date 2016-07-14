@@ -349,6 +349,12 @@ function removeduplicates!{T <: AbstractString}(db,table::AbstractString,cols::A
     return
  end
 
+interrupt(db::DB) = sqlite3_interrupt(db.handle)
+
+function progresshandler(db::DB, cb::Function, instructions::Integer)
+  sqlite3_progress_handler(db.handle, instructions, cb)
+end
+
 "`SQLite.Source` implements the `Source` interface in the `DataStreams` framework"
 type Source <: Data.Source
     schema::Data.Schema
